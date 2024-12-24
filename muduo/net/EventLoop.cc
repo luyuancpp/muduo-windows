@@ -28,8 +28,13 @@ namespace
 {
 __thread EventLoop* t_loopInThisThread = 0;
 
+#ifdef __linux__
 const int kPollTimeMs = 10000;
+#endif // __linux__
 
+#ifdef WIN32
+const int kPollTimeMs = 100;
+#endif // WIN32
 int createEventfd()
 {
   int evtfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -96,7 +101,12 @@ EventLoop::~EventLoop()
             << " destructs in thread " << CurrentThread::tid();
   wakeupChannel_->disableAll();
   wakeupChannel_->remove();
+#ifdef __linux
   ::close(wakeupFd_);
+#endif // __linux
+#ifdef WIN32
+  ::winclosesock(wakeupFd_);
+#endif // WIN32
   t_loopInThisThread = NULL;
 }
 
@@ -124,6 +134,9 @@ void EventLoop::loop()
       currentActiveChannel_ = channel;
       currentActiveChannel_->handleEvent(pollReturnTime_);
     }
+#ifdef WIN32
+	timerQueue_->loop();
+#endif // WIN32
     currentActiveChannel_ = NULL;
     eventHandling_ = false;
     doPendingFunctors();
@@ -233,22 +246,26 @@ void EventLoop::abortNotInLoopThread()
 
 void EventLoop::wakeup()
 {
+#ifdef __linux__
   uint64_t one = 1;
   ssize_t n = sockets::write(wakeupFd_, &one, sizeof one);
   if (n != sizeof one)
   {
     LOG_ERROR << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
   }
+#endif // __linux__
 }
 
 void EventLoop::handleRead()
 {
+#ifdef __linux__
   uint64_t one = 1;
   ssize_t n = sockets::read(wakeupFd_, &one, sizeof one);
   if (n != sizeof one)
   {
     LOG_ERROR << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
   }
+#endif // __linux__
 }
 
 void EventLoop::doPendingFunctors()

@@ -7,7 +7,9 @@ add_custom_command(OUTPUT query.pb.cc query.pb.h
   DEPENDS query.proto
   VERBATIM )
 
+if (UNIX)
 set_source_files_properties(query.pb.cc PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-shadow")
+endif()
 include_directories(${PROJECT_BINARY_DIR})
 
 add_library(query_proto query.pb.cc)

@@ -4,7 +4,9 @@ add_custom_command(OUTPUT logrecord.pb.cc logrecord.pb.h
   DEPENDS logrecord.proto
   VERBATIM )
 
+if (UNIX)
 set_source_files_properties(logrecord.pb.cc PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-shadow")
+endif()
 include_directories(${PROJECT_BINARY_DIR})
 
 add_library(ace_logging_proto logrecord.pb.cc)

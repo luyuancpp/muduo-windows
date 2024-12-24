@@ -13,6 +13,7 @@
 
 #include "muduo/base/copyable.h"
 #include "muduo/base/StringPiece.h"
+#include "muduo/base/CrossPlatformAdapterFunction.h"
 
 #include <netinet/in.h>
 

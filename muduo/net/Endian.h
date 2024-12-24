@@ -14,6 +14,8 @@
 #include <stdint.h>
 #include <endian.h>
 
+#include "muduo/base/CrossPlatformAdapterFunction.h"
+
 namespace muduo
 {
 namespace net

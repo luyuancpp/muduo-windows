@@ -12,10 +12,12 @@
 
 #include "muduo/net/TimerQueue.h"
 
+#include "muduo/base/CrossPlatformAdapterFunction.h"
 #include "muduo/base/Logging.h"
 #include "muduo/net/EventLoop.h"
 #include "muduo/net/Timer.h"
 #include "muduo/net/TimerId.h"
+#include "muduo/net/SocketsOps.h"
 
 #include <sys/timerfd.h>
 #include <unistd.h>
@@ -56,6 +58,7 @@ struct timespec howMuchTimeFromNow(Timestamp when)
 
 void readTimerfd(int timerfd, Timestamp now)
 {
+#ifdef __linux__
   uint64_t howmany;
   ssize_t n = ::read(timerfd, &howmany, sizeof howmany);
   LOG_TRACE << "TimerQueue::handleRead() " << howmany << " at " << now.toString();
@@ -63,6 +66,11 @@ void readTimerfd(int timerfd, Timestamp now)
   {
     LOG_ERROR << "TimerQueue::handleRead() reads " << n << " bytes instead of 8";
   }
+#endif // __linux__
+#ifdef WIN32
+  (void)timerfd;
+  (void)now;
+#endif // WIN32
 }
 
 void resetTimerfd(int timerfd, Timestamp expiration)
@@ -105,7 +113,12 @@ TimerQueue::~TimerQueue()
 {
   timerfdChannel_.disableAll();
   timerfdChannel_.remove();
+#ifdef __linux__
   ::close(timerfd_);
+#endif // __linux__
+#ifdef WIN32
+  ::winclosesock(timerfd_);
+#endif // WIN32
   // do not remove channel, since we're in EventLoop::dtor();
   for (const Entry& timer : timers_)
   {
@@ -160,6 +173,11 @@ void TimerQueue::cancelInLoop(TimerId timerId)
   assert(timers_.size() == activeTimers_.size());
 }
 
+void TimerQueue::loop()
+{
+    handleRead();
+}
+
 void TimerQueue::handleRead()
 {
   loop_->assertInLoopThread();
@@ -173,6 +191,10 @@ void TimerQueue::handleRead()
   // safe to callback outside critical section
   for (const Entry& it : expired)
   {
+      if (cancelingTimers_.contains(ActiveTimer{ it.second, it.second->sequence() }))
+      {
+          continue;
+      }
     it.second->run();
   }
   callingExpiredTimers_ = false;

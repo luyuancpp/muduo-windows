@@ -6,6 +6,7 @@
 #include "muduo/base/FileUtil.h"
 #include "muduo/base/Logging.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,8 +17,13 @@
 using namespace muduo;
 
 FileUtil::AppendFile::AppendFile(StringArg filename)
+#ifdef __linux__
   : fp_(::fopen(filename.c_str(), "ae")),  // 'e' for O_CLOEXEC
-    writtenBytes_(0)
+#endif // __linux__
+#ifdef WIN32
+	: fp_(::fopen(filename.c_str(), "a")),  // 'e' for O_CLOEXEC
+#endif // WIN32    
+	writtenBytes_(0)
 {
   assert(fp_);
   ::setbuffer(fp_, buffer_, sizeof buffer_);

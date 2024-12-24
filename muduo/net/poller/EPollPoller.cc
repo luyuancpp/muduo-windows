@@ -6,6 +6,8 @@
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
+#ifdef __linux__
+
 #include "muduo/net/poller/EPollPoller.h"
 
 #include "muduo/base/Logging.h"
@@ -206,3 +208,4 @@ const char* EPollPoller::operationToString(int op)
       return "Unknown Operation";
   }
 }
+#endif // linux__

@@ -4,8 +4,9 @@
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
 #include "muduo/base/CurrentThread.h"
-
+#ifdef __linux__
 #include <cxxabi.h>
+#endif// __linux__
 #include <execinfo.h>
 #include <stdlib.h>
 
@@ -18,6 +19,8 @@ __thread char t_tidString[32];
 __thread int t_tidStringLength = 6;
 __thread const char* t_threadName = "unknown";
 static_assert(std::is_same<int, pid_t>::value, "pid_t should be int");
+
+#ifdef __linux__
 
 string stackTrace(bool demangle)
 {
@@ -72,6 +75,8 @@ string stackTrace(bool demangle)
   }
   return stack;
 }
+
+#endif  //__linux__
 
 }  // namespace CurrentThread
 }  // namespace muduo

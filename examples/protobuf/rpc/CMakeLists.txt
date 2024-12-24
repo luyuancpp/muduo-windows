@@ -3,7 +3,9 @@ add_custom_command(OUTPUT sudoku.pb.cc sudoku.pb.h
   ARGS --cpp_out . ${CMAKE_CURRENT_SOURCE_DIR}/sudoku.proto -I${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS sudoku.proto)
 
+if (UNIX)
 set_source_files_properties(sudoku.pb.cc PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-shadow")
+endif()
 include_directories(${PROJECT_BINARY_DIR})
 
 add_library(sudoku_proto sudoku.pb.cc)

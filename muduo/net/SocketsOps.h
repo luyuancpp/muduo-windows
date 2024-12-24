@@ -13,6 +13,7 @@
 
 #include <arpa/inet.h>
 
+#include "muduo/base/CrossPlatformAdapterFunction.h"
 namespace muduo
 {
 namespace net

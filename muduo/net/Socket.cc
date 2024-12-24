@@ -6,6 +6,7 @@
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
+#include "muduo/base/CrossPlatformAdapterFunction.h"
 #include "muduo/net/Socket.h"
 
 #include "muduo/base/Logging.h"

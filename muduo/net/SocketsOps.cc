@@ -74,6 +74,7 @@ const struct sockaddr_in6* sockets::sockaddr_in6_cast(const struct sockaddr* add
   return static_cast<const struct sockaddr_in6*>(implicit_cast<const void*>(addr));
 }
 
+#ifdef __linux__
 int sockets::createNonblockingOrDie(sa_family_t family)
 {
 #if VALGRIND
@@ -93,6 +94,7 @@ int sockets::createNonblockingOrDie(sa_family_t family)
 #endif
   return sockfd;
 }
+#endif // __linux__
 
 void sockets::bindOrDie(int sockfd, const struct sockaddr* addr)
 {
@@ -156,6 +158,7 @@ int sockets::accept(int sockfd, struct sockaddr_in6* addr)
   return connfd;
 }
 
+#ifdef __linux__
 int sockets::connect(int sockfd, const struct sockaddr* addr)
 {
   return ::connect(sockfd, addr, static_cast<socklen_t>(sizeof(struct sockaddr_in6)));
@@ -165,12 +168,14 @@ ssize_t sockets::read(int sockfd, void *buf, size_t count)
 {
   return ::read(sockfd, buf, count);
 }
+#endif
 
 ssize_t sockets::readv(int sockfd, const struct iovec *iov, int iovcnt)
 {
   return ::readv(sockfd, iov, iovcnt);
 }
 
+#ifdef __linux__
 ssize_t sockets::write(int sockfd, const void *buf, size_t count)
 {
   return ::write(sockfd, buf, count);
@@ -183,6 +188,7 @@ void sockets::close(int sockfd)
     LOG_SYSERR << "sockets::close";
   }
 }
+#endif // __linux__
 
 void sockets::shutdownWrite(int sockfd)
 {

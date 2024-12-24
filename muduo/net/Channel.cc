@@ -32,6 +32,9 @@ Channel::Channel(EventLoop* loop, int fd__)
     eventHandling_(false),
     addedToLoop_(false)
 {
+#ifdef WIN32
+    logHup_ = false;
+#endif // WIN32
 }
 
 Channel::~Channel()
@@ -91,6 +94,11 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
       LOG_WARN << "fd = " << fd_ << " Channel::handle_event() POLLHUP";
     }
     if (closeCallback_) closeCallback_();
+#ifdef WIN32
+    eventHandling_ = false;
+    return;
+#endif // WIN32
+
   }
 
   if (revents_ & POLLNVAL)

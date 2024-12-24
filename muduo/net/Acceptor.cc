@@ -27,7 +27,12 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr, bool reusepor
     acceptSocket_(sockets::createNonblockingOrDie(listenAddr.family())),
     acceptChannel_(loop, acceptSocket_.fd()),
     listening_(false),
+#ifdef __linux__
     idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC))
+#endif // __linux__
+#ifdef WIN32
+	idleFd_(sockets::createNonblockingOrDie(listenAddr.family()))
+#endif // WIN32
 {
   assert(idleFd_ >= 0);
   acceptSocket_.setReuseAddr(true);
@@ -41,7 +46,12 @@ Acceptor::~Acceptor()
 {
   acceptChannel_.disableAll();
   acceptChannel_.remove();
+#ifdef __linux__
   ::close(idleFd_);
+ #endif // __linux__
+#ifdef WIN32
+	::winclosesock(idleFd_);
+#endif // WIN32
 }
 
 void Acceptor::listen()
@@ -79,10 +89,17 @@ void Acceptor::handleRead()
     // By Marc Lehmann, author of libev.
     if (errno == EMFILE)
     {
+      #ifdef __linux__
       ::close(idleFd_);
       idleFd_ = ::accept(acceptSocket_.fd(), NULL, NULL);
       ::close(idleFd_);
       idleFd_ = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+ 	  #endif // __linux__
+#ifdef WIN32
+    ::winclosesock(idleFd_);
+    idleFd_ = (int)::accept(acceptSocket_.fd(), NULL, NULL);
+    ::winclosesock(idleFd_);
+#endif // WIN32
     }
   }
 }

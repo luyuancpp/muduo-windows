@@ -6,6 +6,7 @@
 #include "muduo/base/TimeZone.h"
 #include "muduo/base/noncopyable.h"
 #include "muduo/base/Date.h"
+#include <muduo/base/CrossPlatformAdapterFunction.h>
 
 #include <algorithm>
 #include <memory>
@@ -110,11 +111,19 @@ class File : noncopyable
 
   string readBytes(int n)
   {
-    char buf[n];
-    ssize_t nr = ::fread(buf, 1, n, fp_);
-    if (nr != n)
-      throw std::logic_error("no enough data");
-    return string(buf, n);
+#ifdef __linux__
+      char buf[n];
+      ssize_t nr = ::fread(buf, 1, n, fp_);
+      if (nr != n)
+          throw std::logic_error("no enough data");
+      return string(buf, n);
+#else 
+      std::vector<char> buf(n);
+      ssize_t nr = ::fread(buf.data(), 1, n, fp_);
+      if (nr != n)
+          throw std::logic_error("no enough data");
+      return string(buf.data(), n);
+#endif//__linux__
   }
 
   string readToEnd()

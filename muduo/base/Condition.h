@@ -9,10 +9,12 @@
 #include "muduo/base/Mutex.h"
 
 #include <pthread.h>
+#include <condition_variable>
+#include <chrono>
 
 namespace muduo
 {
-
+#ifdef __muduo_asynchronization__
 class Condition : noncopyable
 {
  public:
@@ -50,6 +52,32 @@ class Condition : noncopyable
   MutexLock& mutex_;
   pthread_cond_t pcond_;
 };
+#else
+class Condition : public std::condition_variable
+{
+public:
+
+    // returns true if time out, false otherwise.
+    bool waitForSeconds(MutexLockGuard & lock, double seconds)
+    {
+        wait_for(lock, std::chrono::seconds((int32_t)seconds));
+        return true;
+    }
+
+    void notify()
+    {
+        notify_all();
+    }
+
+    void notifyAll()
+    {
+        notify_all();
+    }
+
+private:
+ 
+};
+#endif//__muduo_asynchronization__
 
 }  // namespace muduo
 

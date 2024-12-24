@@ -3,7 +3,9 @@ add_custom_command(OUTPUT resolver.pb.cc resolver.pb.h
   ARGS --cpp_out . ${CMAKE_CURRENT_SOURCE_DIR}/resolver.proto -I${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS resolver.proto)
 
+if (UNIX)
 set_source_files_properties(resolver.pb.cc PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-shadow")
+endif()
 include_directories(${PROJECT_BINARY_DIR})
 
 add_library(resolver_proto resolver.pb.cc)

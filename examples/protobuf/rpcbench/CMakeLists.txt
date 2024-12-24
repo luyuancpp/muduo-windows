@@ -3,7 +3,9 @@ add_custom_command(OUTPUT echo.pb.cc echo.pb.h
   ARGS --cpp_out . ${CMAKE_CURRENT_SOURCE_DIR}/echo.proto -I${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS echo.proto)
 
+if (UNIX)
 set_source_files_properties(echo.pb.cc PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-shadow")
+endif()
 include_directories(${PROJECT_BINARY_DIR})
 
 add_library(echo_proto echo.pb.cc)

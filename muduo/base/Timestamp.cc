@@ -14,6 +14,7 @@
 
 #include <inttypes.h>
 
+#include "muduo/base/CrossPlatformAdapterFunction.h"
 using namespace muduo;
 
 static_assert(sizeof(Timestamp) == sizeof(int64_t),
