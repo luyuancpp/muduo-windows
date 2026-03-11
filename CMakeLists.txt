@@ -1,6 +1,89 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.5...3.31)
+
+if(POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+endif()
 
 project(muduo C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(MSVC)
+  add_compile_options(/std:c++latest)
+endif()
+
+# Keep FetchContent cache stable across different build directories.
+set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.fc-cache" CACHE PATH "FetchContent shared cache" FORCE)
+include(FetchContent)
+
+# Release tags (can be overridden with -Dxxx_TAG=...)
+set(BOOST_TAG "boost-1.90.0" CACHE STRING "Boost release tag")
+set(GTEST_TAG "v1.14.0" CACHE STRING "googletest release tag")
+set(PROTOBUF_TAG "v3.21.12" CACHE STRING "protobuf release tag")
+set(ZLIB_TAG "v1.3.1" CACHE STRING "zlib release tag")
+
+set(BOOST_LOCAL_DIR "${CMAKE_SOURCE_DIR}/boost")
+set(GTEST_LOCAL_DIR "${CMAKE_SOURCE_DIR}/googletest")
+set(PROTOBUF_LOCAL_DIR "${CMAKE_SOURCE_DIR}/protobuf")
+set(ZLIB_LOCAL_DIR "${CMAKE_SOURCE_DIR}/zlib")
+
+if(EXISTS "${BOOST_LOCAL_DIR}")
+  message(STATUS "Using local boost source: ${BOOST_LOCAL_DIR}")
+  FetchContent_Declare(boost SOURCE_DIR "${BOOST_LOCAL_DIR}")
+else()
+  FetchContent_Declare(boost
+    URL https://archives.boost.io/release/1.90.0/source/boost_1_90_0.zip
+  )
+endif()
+
+if(EXISTS "${GTEST_LOCAL_DIR}/CMakeLists.txt")
+  message(STATUS "Using local googletest source: ${GTEST_LOCAL_DIR}")
+  FetchContent_Declare(googletest SOURCE_DIR "${GTEST_LOCAL_DIR}")
+else()
+  FetchContent_Declare(googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG ${GTEST_TAG}
+    GIT_SHALLOW TRUE
+  )
+endif()
+
+if(EXISTS "${PROTOBUF_LOCAL_DIR}/CMakeLists.txt")
+  message(STATUS "Using local protobuf source: ${PROTOBUF_LOCAL_DIR}")
+  FetchContent_Declare(protobuf SOURCE_DIR "${PROTOBUF_LOCAL_DIR}")
+else()
+  FetchContent_Declare(protobuf
+    GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+    GIT_TAG ${PROTOBUF_TAG}
+    GIT_SHALLOW TRUE
+  )
+endif()
+
+if(EXISTS "${ZLIB_LOCAL_DIR}/CMakeLists.txt")
+  message(STATUS "Using local zlib source: ${ZLIB_LOCAL_DIR}")
+  FetchContent_Declare(zlib SOURCE_DIR "${ZLIB_LOCAL_DIR}")
+else()
+  FetchContent_Declare(zlib
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    GIT_TAG ${ZLIB_TAG}
+    GIT_SHALLOW TRUE
+  )
+endif()
+
+# Protobuf defaults bring its own gmock/gtest tests, which conflicts with
+# the separately fetched googletest in this workspace.
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+if(MSVC)
+  # Keep protobuf CRT consistent with this workspace (/MD).
+  set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)
+endif()
+
+FetchContent_MakeAvailable(boost googletest protobuf zlib)
+
+# Prevent GoogleTest from overriding our compiler/linker options
+# when building with Visual Studio
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 enable_testing()
 
@@ -8,95 +91,72 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-# only build examples if this is the main project
-if(CMAKE_PROJECT_NAME STREQUAL "muduo")
-  option(MUDUO_BUILD_EXAMPLES "Build Muduo examples" ON)
+if (MSVC)
+
+  # Build with multiple processes
+  add_definitions(/MP)
+  add_definitions( /wd4068 /wd4996 /wd4244)
+  # Allow big object
+  add_definitions(/bigobj)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ")
+  set(CompilerFlags
+        CMAKE_CXX_FLAGS
+        CMAKE_CXX_FLAGS_DEBUG
+        CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_C_FLAGS
+        CMAKE_C_FLAGS_DEBUG
+        CMAKE_C_FLAGS_RELEASE
+        )
+    foreach(CompilerFlag ${CompilerFlags})
+        string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+    endforeach()
+
+else (MSVC)
+
+  set(CXX_FLAGS
+  -g
+  # -DVALGRIND
+  # -DMUDUO_STD_STRING
+  -DCHECK_PTHREAD_RETURN_VALUE
+  -D_FILE_OFFSET_BITS=64
+  -Wall
+  -Wextra
+  -Werror
+  -Wconversion
+  -Wno-unused-parameter
+  #-Wold-style-cast
+  -Woverloaded-virtual
+  -Wpointer-arith
+  -Wshadow
+  -Wwrite-strings
+  -march=native
+  -rdynamic
+  -pthread 
+  -lpthread 
+  -D_GLIBCXX_USE_DEPRECATED=0
+  )
+  
+if(CMAKE_BUILD_BITS EQUAL 64)
+  list(APPEND CXX_FLAGS "-m64")
 endif()
 
-set(CXX_FLAGS
- -g
- # -DVALGRIND
- -DCHECK_PTHREAD_RETURN_VALUE
- -D_FILE_OFFSET_BITS=64
- -Wall
- -Wextra
- -Werror
- -Wconversion
- -Wno-unused-parameter
- -Wold-style-cast
- -Woverloaded-virtual
- -Wpointer-arith
- -Wshadow
- -Wwrite-strings
- -march=native
- # -MMD
- -std=c++11
- -rdynamic
- )
-if(CMAKE_BUILD_BITS EQUAL 32)
-  list(APPEND CXX_FLAGS "-m32")
-endif()
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND CXX_FLAGS "-Wno-null-dereference")
-  list(APPEND CXX_FLAGS "-Wno-sign-conversion")
-  list(APPEND CXX_FLAGS "-Wno-unused-local-typedef")
-  list(APPEND CXX_FLAGS "-Wthread-safety")
-  list(REMOVE_ITEM CXX_FLAGS "-rdynamic")
-endif()
 string(REPLACE ";" " " CMAKE_CXX_FLAGS "${CXX_FLAGS}")
-
+set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -finline-limit=1000 -DNDEBUG")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+endif (MSVC)
 
-find_package(Boost REQUIRED)
-find_package(Protobuf)
-find_package(CURL)
-find_package(ZLIB)
-find_path(CARES_INCLUDE_DIR ares.h)
-find_library(CARES_LIBRARY NAMES cares)
-find_path(MHD_INCLUDE_DIR microhttpd.h)
-find_library(MHD_LIBRARY NAMES microhttpd)
-find_library(BOOSTTEST_LIBRARY NAMES boost_unit_test_framework)
-find_library(BOOSTPO_LIBRARY NAMES boost_program_options)
-find_library(BOOSTSYSTEM_LIBRARY NAMES boost_system)
-find_path(TCMALLOC_INCLUDE_DIR gperftools/heap-profiler.h)
-find_library(TCMALLOC_LIBRARY NAMES tcmalloc_and_profiler)
-find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
-find_library(HIREDIS_LIBRARY NAMES hiredis)
-find_path(GD_INCLUDE_DIR gd.h)
-find_library(GD_LIBRARY NAMES gd)
-find_program(THRIFT_COMPILER thrift)
-find_path(THRIFT_INCLUDE_DIR thrift)
-find_library(THRIFT_LIBRARY NAMES thrift)
-
-if(CARES_INCLUDE_DIR AND CARES_LIBRARY)
-  message(STATUS "found cares")
-endif()
-if(CURL_FOUND)
-  message(STATUS "found curl")
-endif()
-if(PROTOBUF_FOUND)
-  message(STATUS "found protobuf")
-endif()
-if(TCMALLOC_INCLUDE_DIR AND TCMALLOC_LIBRARY)
-  message(STATUS "found tcmalloc")
-endif()
-if(ZLIB_FOUND)
-  message(STATUS "found zlib")
-endif()
-if(HIREDIS_INCLUDE_DIR AND HIREDIS_LIBRARY)
-  message(STATUS "found hiredis")
-endif()
-if(GD_INCLUDE_DIR AND GD_LIBRARY)
-  message(STATUS "found gd")
-endif()
-if(THRIFT_COMPILER AND THRIFT_INCLUDE_DIR AND THRIFT_LIBRARY)
-  message(STATUS "found thrift")
-endif()
-
-include_directories(${Boost_INCLUDE_DIRS})
+include_directories(contrib/boost/boost)
+include_directories(contrib/windows/include)
+include_directories(${boost_SOURCE_DIR})
+include_directories(${googletest_SOURCE_DIR}/googletest/include)
+include_directories(${googletest_SOURCE_DIR}/googlemock/include)
+include_directories(${protobuf_SOURCE_DIR}/src)
+include_directories(muduo/net/protorpc)
+include_directories(${zlib_SOURCE_DIR})
+include_directories("${zlib_BINARY_DIR}")
 
 include_directories(${PROJECT_SOURCE_DIR})
 
@@ -105,13 +165,18 @@ message(STATUS "CXX_FLAGS = " ${CMAKE_CXX_FLAGS} " " ${CMAKE_CXX_FLAGS_${BUILD_T
 
 add_subdirectory(muduo/base)
 add_subdirectory(muduo/net)
+add_subdirectory(examples/protobuf)
 
-if(MUDUO_BUILD_EXAMPLES)
-  add_subdirectory(contrib)
-  add_subdirectory(examples)
-else()
-  if(CARES_INCLUDE_DIR AND CARES_LIBRARY)
-    add_subdirectory(examples/cdns)
-  endif()
+# Merge muduo_base.lib + muduo_net.lib into a single muduo.lib
+if(MSVC)
+  set(muduo_combined_output "${CMAKE_BINARY_DIR}/lib/$<CONFIG>/muduo.lib")
+  add_custom_target(muduo ALL
+    COMMAND "${CMAKE_AR}" /NOLOGO
+            "/OUT:${muduo_combined_output}"
+            "$<TARGET_FILE:muduo_base>"
+            "$<TARGET_FILE:muduo_net>"
+    DEPENDS muduo_base muduo_net
+    COMMENT "Merging muduo_base.lib and muduo_net.lib into muduo.lib"
+    VERBATIM
+  )
 endif()
-

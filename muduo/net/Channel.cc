@@ -27,7 +27,11 @@ Channel::Channel(EventLoop* loop, int fd__)
     events_(0),
     revents_(0),
     index_(-1),
+#ifdef __linux__
     logHup_(true),
+#else
+    logHup_(muduo_channel_default_log_hup()),
+#endif
     tied_(false),
     eventHandling_(false),
     addedToLoop_(false)
@@ -91,6 +95,13 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
       LOG_WARN << "fd = " << fd_ << " Channel::handle_event() POLLHUP";
     }
     if (closeCallback_) closeCallback_();
+#ifndef __linux__
+    if (muduo_channel_return_after_close())
+    {
+      eventHandling_ = false;
+      return;
+    }
+#endif
   }
 
   if (revents_ & POLLNVAL)

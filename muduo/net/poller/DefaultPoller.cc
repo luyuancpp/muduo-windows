@@ -8,7 +8,9 @@
 
 #include "muduo/net/Poller.h"
 #include "muduo/net/poller/PollPoller.h"
+#ifdef __linux__
 #include "muduo/net/poller/EPollPoller.h"
+#endif
 
 #include <stdlib.h>
 
@@ -16,6 +18,7 @@ using namespace muduo::net;
 
 Poller* Poller::newDefaultPoller(EventLoop* loop)
 {
+#ifdef __linux__
   if (::getenv("MUDUO_USE_POLL"))
   {
     return new PollPoller(loop);
@@ -24,4 +27,7 @@ Poller* Poller::newDefaultPoller(EventLoop* loop)
   {
     return new EPollPoller(loop);
   }
+#else
+  return new PollPoller(loop);
+#endif
 }

@@ -28,7 +28,11 @@ namespace
 {
 __thread EventLoop* t_loopInThisThread = 0;
 
+#ifdef __linux__
 const int kPollTimeMs = 10000;
+#else
+const int kPollTimeMs = muduo_eventloop_poll_timeout_ms();
+#endif
 
 int createEventfd()
 {
@@ -47,7 +51,11 @@ class IgnoreSigPipe
  public:
   IgnoreSigPipe()
   {
+#ifdef __linux__
     ::signal(SIGPIPE, SIG_IGN);
+#else
+    muduo_ignore_sigpipe();
+#endif
     // LOG_TRACE << "Ignore SIGPIPE";
   }
 };
@@ -96,7 +104,11 @@ EventLoop::~EventLoop()
             << " destructs in thread " << CurrentThread::tid();
   wakeupChannel_->disableAll();
   wakeupChannel_->remove();
+#ifdef __linux__
   ::close(wakeupFd_);
+#else
+  muduo_close_fd_compat(wakeupFd_);
+#endif
   t_loopInThisThread = NULL;
 }
 
@@ -124,6 +136,12 @@ void EventLoop::loop()
       currentActiveChannel_ = channel;
       currentActiveChannel_->handleEvent(pollReturnTime_);
     }
+#ifndef __linux__
+    if (muduo_eventloop_use_timerqueue_loop())
+    {
+      timerQueue_->loop();
+    }
+#endif
     currentActiveChannel_ = NULL;
     eventHandling_ = false;
     doPendingFunctors();
@@ -233,9 +251,14 @@ void EventLoop::abortNotInLoopThread()
 
 void EventLoop::wakeup()
 {
+#ifdef __linux__
   uint64_t one = 1;
   ssize_t n = sockets::write(wakeupFd_, &one, sizeof one);
   if (n != sizeof one)
+#else
+  ssize_t n = muduo_eventloop_wakeup_write(wakeupFd_);
+  if (n != static_cast<ssize_t>(sizeof(uint64_t)))
+#endif
   {
     LOG_ERROR << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
   }
@@ -243,9 +266,14 @@ void EventLoop::wakeup()
 
 void EventLoop::handleRead()
 {
+#ifdef __linux__
   uint64_t one = 1;
   ssize_t n = sockets::read(wakeupFd_, &one, sizeof one);
   if (n != sizeof one)
+#else
+  ssize_t n = muduo_eventloop_wakeup_read(wakeupFd_);
+  if (n != static_cast<ssize_t>(sizeof(uint64_t)))
+#endif
   {
     LOG_ERROR << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
   }

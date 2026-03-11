@@ -21,6 +21,7 @@ static_assert(std::is_same<int, pid_t>::value, "pid_t should be int");
 
 string stackTrace(bool demangle)
 {
+#ifdef __linux__
   string stack;
   const int max_frames = 200;
   void* frame[max_frames];
@@ -71,6 +72,9 @@ string stackTrace(bool demangle)
     free(strings);
   }
   return stack;
+#else
+  return muduo_stack_trace(demangle);
+#endif
 }
 
 }  // namespace CurrentThread

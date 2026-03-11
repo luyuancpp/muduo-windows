@@ -21,8 +21,13 @@ class BoundedBlockingQueue : noncopyable
  public:
   explicit BoundedBlockingQueue(int maxSize)
     : mutex_(),
+#ifdef __muduo_asynchronization__
       notEmpty_(mutex_),
       notFull_(mutex_),
+#else
+      notEmpty_(),
+      notFull_(),
+#endif
       queue_(maxSize)
   {
   }
@@ -32,7 +37,11 @@ class BoundedBlockingQueue : noncopyable
     MutexLockGuard lock(mutex_);
     while (queue_.full())
     {
+#ifdef __muduo_asynchronization__
       notFull_.wait();
+#else
+      notFull_.wait(lock);
+#endif
     }
     assert(!queue_.full());
     queue_.push_back(x);
@@ -44,7 +53,11 @@ class BoundedBlockingQueue : noncopyable
     MutexLockGuard lock(mutex_);
     while (queue_.full())
     {
+#ifdef __muduo_asynchronization__
       notFull_.wait();
+#else
+      notFull_.wait(lock);
+#endif
     }
     assert(!queue_.full());
     queue_.push_back(std::move(x));
@@ -56,7 +69,11 @@ class BoundedBlockingQueue : noncopyable
     MutexLockGuard lock(mutex_);
     while (queue_.empty())
     {
+#ifdef __muduo_asynchronization__
       notEmpty_.wait();
+#else
+      notEmpty_.wait(lock);
+#endif
     }
     assert(!queue_.empty());
     T front(std::move(queue_.front()));

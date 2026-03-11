@@ -23,7 +23,11 @@ class BlockingQueue : noncopyable
 
   BlockingQueue()
     : mutex_(),
+#ifdef __muduo_asynchronization__
       notEmpty_(mutex_),
+#else
+      notEmpty_(),
+#endif
       queue_()
   {
   }
@@ -49,7 +53,11 @@ class BlockingQueue : noncopyable
     // always use a while-loop, due to spurious wakeup
     while (queue_.empty())
     {
+#ifdef __muduo_asynchronization__
       notEmpty_.wait();
+#else
+      notEmpty_.wait(lock);
+#endif
     }
     assert(!queue_.empty());
     T front(std::move(queue_.front()));

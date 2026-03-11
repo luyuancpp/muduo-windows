@@ -76,6 +76,7 @@ const struct sockaddr_in6* sockets::sockaddr_in6_cast(const struct sockaddr* add
 
 int sockets::createNonblockingOrDie(sa_family_t family)
 {
+#ifdef __linux__
 #if VALGRIND
   int sockfd = ::socket(family, SOCK_STREAM, IPPROTO_TCP);
   if (sockfd < 0)
@@ -86,6 +87,13 @@ int sockets::createNonblockingOrDie(sa_family_t family)
   setNonBlockAndCloseOnExec(sockfd);
 #else
   int sockfd = ::socket(family, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
+  if (sockfd < 0)
+  {
+    LOG_SYSFATAL << "sockets::createNonblockingOrDie";
+  }
+#endif
+#else
+  int sockfd = muduo_create_nonblocking_or_die(family);
   if (sockfd < 0)
   {
     LOG_SYSFATAL << "sockets::createNonblockingOrDie";
@@ -158,12 +166,20 @@ int sockets::accept(int sockfd, struct sockaddr_in6* addr)
 
 int sockets::connect(int sockfd, const struct sockaddr* addr)
 {
+#ifdef __linux__
   return ::connect(sockfd, addr, static_cast<socklen_t>(sizeof(struct sockaddr_in6)));
+#else
+  return muduo_socket_connect_compat(sockfd, addr);
+#endif
 }
 
 ssize_t sockets::read(int sockfd, void *buf, size_t count)
 {
+#ifdef __linux__
   return ::read(sockfd, buf, count);
+#else
+  return muduo_socket_read_compat(sockfd, buf, count);
+#endif
 }
 
 ssize_t sockets::readv(int sockfd, const struct iovec *iov, int iovcnt)
@@ -173,12 +189,20 @@ ssize_t sockets::readv(int sockfd, const struct iovec *iov, int iovcnt)
 
 ssize_t sockets::write(int sockfd, const void *buf, size_t count)
 {
+#ifdef __linux__
   return ::write(sockfd, buf, count);
+#else
+  return muduo_socket_write_compat(sockfd, buf, count);
+#endif
 }
 
 void sockets::close(int sockfd)
 {
+#ifdef __linux__
   if (::close(sockfd) < 0)
+#else
+  if (muduo_socket_close_compat(sockfd) < 0)
+#endif
   {
     LOG_SYSERR << "sockets::close";
   }

@@ -12,6 +12,9 @@
 #include "muduo/base/Types.h"
 #include "muduo/net/Channel.h"
 
+#ifndef __linux__
+#include <algorithm>
+#endif
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>

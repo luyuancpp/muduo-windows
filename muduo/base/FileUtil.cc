@@ -6,6 +6,9 @@
 #include "muduo/base/FileUtil.h"
 #include "muduo/base/Logging.h"
 
+#ifndef __linux__
+#include <algorithm>
+#endif
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,7 +19,11 @@
 using namespace muduo;
 
 FileUtil::AppendFile::AppendFile(StringArg filename)
+#ifdef __linux__
   : fp_(::fopen(filename.c_str(), "ae")),  // 'e' for O_CLOEXEC
+#else
+  : fp_(muduo_fopen_append(filename.c_str())),
+#endif
     writtenBytes_(0)
 {
   assert(fp_);
@@ -129,7 +136,11 @@ int FileUtil::ReadSmallFile::readToString(int maxSize,
     while (content->size() < implicit_cast<size_t>(maxSize))
     {
       size_t toRead = std::min(implicit_cast<size_t>(maxSize) - content->size(), sizeof(buf_));
+#ifdef __linux__
       ssize_t n = ::read(fd_, buf_, toRead);
+#else
+      ssize_t n = muduo_read_file_compat(fd_, buf_, toRead);
+#endif
       if (n > 0)
       {
         content->append(buf_, n);

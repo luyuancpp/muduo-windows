@@ -29,7 +29,9 @@ LogFile::LogFile(const string& basename,
     lastRoll_(0),
     lastFlush_(0)
 {
+#ifdef __linux__
   assert(basename.find('/') == string::npos);
+#endif
   rollFile();
 }
 

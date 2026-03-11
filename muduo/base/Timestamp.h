@@ -20,9 +20,13 @@ namespace muduo
 /// This class is immutable.
 /// It's recommended to pass it by value, since it's passed in register on x64.
 ///
+#ifdef __linux__
 class Timestamp : public muduo::copyable,
                   public boost::equality_comparable<Timestamp>,
                   public boost::less_than_comparable<Timestamp>
+#else
+class Timestamp : public muduo::copyable
+#endif
 {
  public:
   ///

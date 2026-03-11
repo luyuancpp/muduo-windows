@@ -86,7 +86,9 @@ void RpcChannel::onRpcMessage(const TcpConnectionPtr& conn,
   if (message.type() == RESPONSE)
   {
     int64_t id = message.id();
+#ifdef __linux__
     assert(message.has_response() || message.has_error());
+#endif
 
     OutstandingCall out = { NULL, NULL };
 
@@ -103,7 +105,11 @@ void RpcChannel::onRpcMessage(const TcpConnectionPtr& conn,
     if (out.response)
     {
       std::unique_ptr<google::protobuf::Message> d(out.response);
+#ifdef __linux__
       if (message.has_response())
+#else
+      if (!message.response().empty())
+#endif
       {
         out.response->ParseFromString(message.response());
       }
@@ -137,7 +143,11 @@ void RpcChannel::onRpcMessage(const TcpConnectionPtr& conn,
             int64_t id = message.id();
             service->CallMethod(method, NULL, get_pointer(request), response,
                                 NewCallback(this, &RpcChannel::doneCallback, response, id));
+#ifdef __linux__
             error = NO_ERROR;
+#else
+            error = RPC_NO_ERROR;
+#endif
           }
           else
           {
@@ -167,7 +177,11 @@ void RpcChannel::onRpcMessage(const TcpConnectionPtr& conn,
       codec_.send(conn_, response);
     }
   }
+#ifdef __linux__
   else if (message.type() == ERROR)
+#else
+  else if (message.type() == RPC_ERROR)
+#endif
   {
   }
 }

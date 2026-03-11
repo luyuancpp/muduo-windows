@@ -7,6 +7,7 @@
 #include "muduo/base/CurrentThread.h"
 #include "muduo/base/FileUtil.h"
 
+#ifdef __linux__
 #include <algorithm>
 
 #include <assert.h>
@@ -56,9 +57,12 @@ int g_clockTicks = static_cast<int>(::sysconf(_SC_CLK_TCK));
 int g_pageSize = static_cast<int>(::sysconf(_SC_PAGE_SIZE));
 }  // namespace detail
 }  // namespace muduo
+#endif//__linux__
 
 using namespace muduo;
+#ifdef __linux__
 using namespace muduo::detail;
+#endif//__linux__
 
 pid_t ProcessInfo::pid()
 {
@@ -72,6 +76,7 @@ string ProcessInfo::pidString()
   return buf;
 }
 
+#ifdef __linux__
 uid_t ProcessInfo::uid()
 {
   return ::getuid();
@@ -120,6 +125,7 @@ bool ProcessInfo::isDebugBuild()
   return true;
 #endif
 }
+#endif // __linux__
 
 string ProcessInfo::hostname()
 {
@@ -137,6 +143,7 @@ string ProcessInfo::hostname()
   }
 }
 
+#ifdef __linux__
 string ProcessInfo::procname()
 {
   return procname(procStat()).as_string();
@@ -244,3 +251,4 @@ std::vector<pid_t> ProcessInfo::threads()
   return result;
 }
 
+#endif // __linux__

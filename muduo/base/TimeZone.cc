@@ -110,11 +110,19 @@ class File : noncopyable
 
   string readBytes(int n)
   {
+#ifdef __linux__
     char buf[n];
     ssize_t nr = ::fread(buf, 1, n, fp_);
     if (nr != n)
       throw std::logic_error("no enough data");
     return string(buf, n);
+#else
+    std::vector<char> buf(n);
+    ssize_t nr = ::fread(buf.data(), 1, n, fp_);
+    if (nr != n)
+      throw std::logic_error("no enough data");
+    return string(buf.data(), n);
+#endif
   }
 
   string readToEnd()

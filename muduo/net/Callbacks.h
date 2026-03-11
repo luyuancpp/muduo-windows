@@ -15,6 +15,9 @@
 
 #include <functional>
 #include <memory>
+#ifndef __linux__
+#include <assert.h>
+#endif
 
 namespace muduo
 {

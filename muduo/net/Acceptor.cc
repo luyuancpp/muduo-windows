@@ -27,7 +27,11 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr, bool reusepor
     acceptSocket_(sockets::createNonblockingOrDie(listenAddr.family())),
     acceptChannel_(loop, acceptSocket_.fd()),
     listening_(false),
+#ifdef __linux__
     idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC))
+#else
+    idleFd_(muduo_open_idle_fd(listenAddr.family()))
+#endif
 {
   assert(idleFd_ >= 0);
   acceptSocket_.setReuseAddr(true);
@@ -41,7 +45,11 @@ Acceptor::~Acceptor()
 {
   acceptChannel_.disableAll();
   acceptChannel_.remove();
+#ifdef __linux__
   ::close(idleFd_);
+#else
+  muduo_close_idle_fd(idleFd_);
+#endif
 }
 
 void Acceptor::listen()
@@ -79,10 +87,14 @@ void Acceptor::handleRead()
     // By Marc Lehmann, author of libev.
     if (errno == EMFILE)
     {
+#ifdef __linux__
       ::close(idleFd_);
       idleFd_ = ::accept(acceptSocket_.fd(), NULL, NULL);
       ::close(idleFd_);
       idleFd_ = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+#else
+      muduo_handle_emfile_idle_fd(acceptSocket_.fd(), &idleFd_, AF_INET);
+#endif
     }
   }
 }
