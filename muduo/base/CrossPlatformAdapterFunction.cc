@@ -320,6 +320,10 @@ ssize_t winreadsock(int fd, void *buf, size_t count)
         {
             errno = EWOULDBLOCK;
         }
+        else if (err == WSAECONNRESET || err == WSAECONNABORTED)
+        {
+            errno = ECONNRESET;
+        }
         else
         {
             _set_errno(err);
@@ -340,6 +344,10 @@ ssize_t winwritesock(int fd, const void *buf, size_t count)
         if (err == WSAEWOULDBLOCK)
         {
             errno = EWOULDBLOCK;
+        }
+        else if (err == WSAECONNRESET || err == WSAECONNABORTED)
+        {
+            errno = ECONNRESET;
         }
         else
         {
